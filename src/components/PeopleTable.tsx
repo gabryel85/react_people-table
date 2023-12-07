@@ -7,24 +7,79 @@ import { Button } from './Button';
 
 type State = {
   people: Person[];
-  selectedPerson: Person | null;
+  selectedPeople: Person[];
 };
 
 export class PeopleTable extends React.Component<{}, State> {
   state: Readonly<State> = {
     people: peopleFromServer,
-    selectedPerson: peopleFromServer[2],
+    selectedPeople: [] as Person[],
   };
 
-  setPerson = (person: Person | null) => {
-    this.setState({ selectedPerson: person });
+  setPerson = (person: Person, isDeleting = false) => () => {
+    this.setState(prev => {
+      const selectedPeople = isDeleting
+        ? prev.selectedPeople.filter(user => user.slug !== person.slug)
+        : [...prev.selectedPeople, person];
+
+      return ({
+        selectedPeople,
+      });
+    });
   };
+
+  handleDelete = (person: Person) => () => {
+    this.setState(prev => ({
+      people: prev.people
+        .filter(user => user.slug !== person.slug),
+    }));
+  }
+
+  moveDown = (person: Person) => () => {
+    const { people } = this.state;
+    const index = people.findIndex(user => user.slug === person.slug);
+
+    if (index >= people.length - 1) {
+      return;
+    }
+
+    const updatedPeople = [
+      ...people.slice(0, index),
+      people[index + 1],
+      people[index],
+      ...people.slice(index + 2),
+    ];
+
+    this.setState({
+      people: updatedPeople,
+    });
+  }
+
+  moveUp = (person: Person) => () => {
+    const { people } = this.state;
+    const index = people.findIndex(user => user.slug === person.slug);
+
+    if (index === 0) {
+      return;
+    }
+
+    const updatedPeople = [
+      ...people.slice(0, index - 1),
+      people[index],
+      people[index - 1],
+      ...people.slice(index + 1),
+    ];
+
+    this.setState({
+      people: updatedPeople,
+    });
+  }
 
   render() {
-    const { people, selectedPerson } = this.state;
+    const { people, selectedPeople } = this.state;
 
     function isSelected(person: Person) {
-      return person.slug === selectedPerson?.slug;
+      return selectedPeople.some(user => user.slug === person.slug);
     }
 
     if (people.length === 0) {
@@ -34,7 +89,7 @@ export class PeopleTable extends React.Component<{}, State> {
     return (
       <table className="table is-striped is-narrow">
         <caption className="title is-5 has-text-info">
-          {selectedPerson?.name || '-'}
+          {selectedPeople?.map(person => person.name).join(', ') || '-'}
         </caption>
 
         <thead>
@@ -43,11 +98,12 @@ export class PeopleTable extends React.Component<{}, State> {
             <th>name</th>
             <th>sex</th>
             <th>born</th>
+            <th> </th>
           </tr>
         </thead>
 
         <tbody>
-          {people.map(person => (
+          {people.map((person, i) => (
             <tr
               key={person.slug}
               className={classNames({
@@ -57,7 +113,7 @@ export class PeopleTable extends React.Component<{}, State> {
               <td>
                 {isSelected(person) ? (
                   <Button
-                    onClick={() => this.setPerson(null)}
+                    onClick={this.setPerson(person, true)}
                     className="is-small is-rounded is-danger"
                   >
                     <span className="icon is-small">
@@ -66,7 +122,7 @@ export class PeopleTable extends React.Component<{}, State> {
                   </Button>
                 ) : (
                   <Button
-                    onClick={() => this.setPerson(person)}
+                    onClick={this.setPerson(person)}
                     className="is-small is-rounded is-success"
                   >
                     <span className="icon is-small">
@@ -83,10 +139,33 @@ export class PeopleTable extends React.Component<{}, State> {
                 })}
               >
                 {person.name}
+                <Button
+                  onClick={this.handleDelete(person)}
+                  className="delete"
+                  type="button"
+                >
+                  delete
+                </Button>
               </td>
 
               <td>{person.sex}</td>
               <td>{person.born}</td>
+              <td className="is-flex is-flex-wrap-nowrap">
+                <Button
+                  disabled={i >= this.state.people.length - 1}
+                  onClick={this.moveDown(person)}
+                >
+                  &darr;
+                </Button>
+
+                <Button
+                  disabled={i === 0}
+                  onClick={this.moveUp(person)}
+                >
+                  &uarr;
+                </Button>
+              </td>
+
             </tr>
           ))}
         </tbody>
